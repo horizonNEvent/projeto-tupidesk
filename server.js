@@ -24,6 +24,14 @@ if (groqApiKey) {
   console.warn('AVISO: api_groq não configurada no arquivo .env. O TupiDesk funcionará com analisadores locais mockados.');
 }
 
+// Inicialização da chave da Resend
+const resendApiKey = process.env.resend || process.env.RESEND_API_KEY;
+if (resendApiKey) {
+  console.log('Chave API do Resend detectada no arquivo .env.');
+} else {
+  console.warn('AVISO: resend não configurada no arquivo .env. Envio de e-mails desativado.');
+}
+
 const TICKETS_FILE = path.join(__dirname, 'tickets.json');
 const KB_FILE = path.join(__dirname, 'knowledge_base.json');
 
@@ -95,6 +103,75 @@ function writeJSONFile(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (error) {
     console.error(`Erro ao escrever no arquivo ${filePath}:`, error);
+  }
+}
+
+// Função para envio de e-mail usando API do Resend
+async function sendTicketResolvedEmail(ticket) {
+  const resendKey = process.env.resend || process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.log(`[Resend] E-mail não enviado para ${ticket.clientEmail}: chave de API do Resend ausente.`);
+    return;
+  }
+
+  const agentComments = ticket.comments.filter(c => c.sender === 'agent');
+  let agentReplyHtml = '';
+  if (agentComments.length > 0) {
+    const lastReply = agentComments[agentComments.length - 1].text;
+    agentReplyHtml = `
+      <div style="border-left: 4px solid #10b981; padding-left: 15px; margin: 20px 0;">
+        <p style="margin: 0 0 5px 0; font-size: 14px; color: #10b981;"><strong>Solução do Atendente:</strong></p>
+        <p style="margin: 0; font-style: italic; white-space: pre-wrap; color: #f3f4f6;">${lastReply}</p>
+      </div>
+    `;
+  }
+
+  const emailBody = {
+    from: 'TupiDesk <onboarding@resend.dev>',
+    to: ticket.clientEmail,
+    subject: `[TupiDesk] Chamado Resolvido: ${ticket.id} - ${ticket.aiAnalysis.summary}`,
+    html: `
+      <div style="font-family: sans-serif; background-color: #0d0f14; color: #f3f4f6; padding: 25px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1f2937;">
+        <div style="text-align: center; border-bottom: 1px solid #1f2937; padding-bottom: 15px; margin-bottom: 20px;">
+          <h2 style="color: #3b82f6; font-size: 24px; margin: 0;">TupiDesk</h2>
+          <span style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Notificação de Encerramento</span>
+        </div>
+        <p>Olá <strong>${ticket.clientName}</strong>,</p>
+        <p>Seu chamado de suporte foi concluído com sucesso e marcado como <strong>Resolvido</strong>.</p>
+        
+        <div style="background-color: #121620; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #1f2937;">
+          <p style="margin: 0 0 10px 0; font-size: 13px; color: #9ca3af; text-transform: uppercase;"><strong>Detalhes do Chamado:</strong></p>
+          <p style="margin: 0 0 5px 0;"><strong>ID:</strong> ${ticket.id}</p>
+          <p style="margin: 0 0 5px 0;"><strong>Resumo:</strong> ${ticket.aiAnalysis.summary}</p>
+          <p style="margin: 0;"><strong>Descrição:</strong> ${ticket.description}</p>
+        </div>
+        
+        ${agentReplyHtml}
+        
+        <hr style="border: 0; border-top: 1px solid #1f2937; margin: 25px 0;" />
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 0;">Este é um e-mail automático enviado pelo TupiDesk. Por favor, não responda diretamente a esta mensagem.</p>
+      </div>
+    `
+  };
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendKey}`
+      },
+      body: JSON.stringify(emailBody)
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log(`[Resend] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. ID: ${data.id}`);
+    } else {
+      console.error(`[Resend] Erro da API ao enviar e-mail para ${ticket.clientEmail}:`, data);
+    }
+  } catch (err) {
+    console.error(`[Resend] Erro de rede ao enviar e-mail para ${ticket.clientEmail}:`, err);
   }
 }
 
@@ -342,8 +419,14 @@ app.put('/api/tickets/:id', (req, res) => {
     return res.status(404).json({ error: "Chamado não encontrado." });
   }
 
+  const oldStatus = tickets[ticketIndex].status;
   tickets[ticketIndex].status = status;
   writeJSONFile(TICKETS_FILE, tickets);
+
+  // Se o status mudou para resolvido, envia o e-mail de finalização
+  if (status === "resolvido" && oldStatus !== "resolvido") {
+    sendTicketResolvedEmail(tickets[ticketIndex]).catch(err => console.error("Erro ao enviar e-mail:", err));
+  }
 
   res.json(tickets[ticketIndex]);
 });
