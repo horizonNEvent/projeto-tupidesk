@@ -1,0 +1,32 @@
+[
+  {
+    "id": "KB001",
+    "title": "Instruções para Reset de Senha e Erros de Login",
+    "keywords": ["senha", "login", "acesso", "entrar", "bloqueado", "2fa", "autenticacao", "credenciais"],
+    "content": "Para recuperar o acesso ou redefinir a senha, o usuário deve clicar em 'Esqueci minha senha' na tela de login. Um link de redefinição será enviado ao e-mail cadastrado (válido por 24 horas). Se a conta estiver bloqueada por excesso de tentativas, o desbloqueio ocorre automaticamente após 15 minutos, ou pode ser feito manualmente pelo painel de administração se solicitado por um gerente."
+  },
+  {
+    "id": "KB002",
+    "title": "Problemas com Pagamento, Faturamento e Boleto/Cartão",
+    "keywords": ["financeiro", "cobranca", "pagamento", "cartao", "boleto", "estorno", "fatura", "recusado", "pix"],
+    "content": "Se o pagamento via cartão de crédito foi recusado, oriente o cliente a verificar com a operadora de cartão ou tentar outra bandeira/método. Para boletos vencidos, uma nova via pode ser emitida diretamente no painel do cliente, aba 'Faturas'. Estornos de pagamentos duplicados ou cancelados são processados pelo nosso financeiro e o crédito na fatura do cliente pode levar de 5 a 10 dias úteis dependendo do banco."
+  },
+  {
+    "id": "KB003",
+    "title": "Lentidão do Sistema, Erro 500/502 e Queda de Servidor",
+    "keywords": ["lento", "lentidao", "fora do ar", "erro 500", "erro 502", "indisponivel", "servidor", "timeout", "offline"],
+    "content": "Em caso de erros 500/502 ou lentidão geral, verifique primeiro o status da nossa infraestrutura em status.tupidesk.com. Se houver queda generalizada, a equipe de DevOps já está atuando. Caso seja um problema isolado no ambiente do cliente, sugira limpar o cache do navegador, testar em aba anônima ou reiniciar a sessão. Se persistir, o time de infraestrutura deve inspecionar os logs do servidor correspondente."
+  },
+  {
+    "id": "KB004",
+    "title": "Configuração de Servidores de E-mail (SMTP/IMAP) e SPAM",
+    "keywords": ["email", "smtp", "imap", "spam", "receber", "enviar", "porta", "servidor de email"],
+    "content": "As configurações padrão de e-mail são: SMTP na porta 587 (com TLS ativado) ou porta 465 (com SSL ativado). O servidor de saída é mail.tupidesk.com. Se os e-mails estão caindo na caixa de SPAM do destinatário, certifique-se de que os registros SPF, DKIM e DMARC do domínio do cliente estão corretamente configurados na zona de DNS."
+  },
+  {
+    "id": "KB005",
+    "title": "Erros de Integração de API, Chaves de API e Limite de Taxa",
+    "keywords": ["api", "webhook", "token", "chave", "auth", "endpoint", "rate limit", "limite", "timeout api"],
+    "content": "Problemas de autenticação na API geralmente são causados por tokens expirados ou chaves incorretas no cabeçalho 'Authorization: Bearer <token>'. Nossos limites de taxa (Rate Limit) são de 60 requisições por minuto para contas padrão. Se o cliente receber o erro HTTP 429 (Too Many Requests), oriente-o a implementar um mecanismo de retentativa com recuo exponencial (exponential backoff) ou solicitar upgrade de plano."
+  }
+]

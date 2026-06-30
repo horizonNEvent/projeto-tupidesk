@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TupiDesk - Central de Chamados Inteligente</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script href="https://cdn.jsdelivr.net/npm/chart.js" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  
+  <!-- BACKGROUND DECORATIONS -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- NAVIGATION -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <i class="fa-solid fa-headset logo-icon"></i>
+        <span>Tupi<span>Desk</span></span>
+        <span class="badge-ia">Groq AI</span>
+      </div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="tab-client-btn" onclick="switchView('client')">
+          <i class="fa-solid fa-user-tag"></i> Portal do Cliente
+        </button>
+        <button class="nav-tab" id="tab-agent-btn" onclick="switchView('agent')">
+          <i class="fa-solid fa-chart-line"></i> Painel do Atendente
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="main-content">
+    
+    <!-- VIEW 1: PORTAL DO CLIENTE -->
+    <section id="view-client" class="view-section active">
+      <div class="client-container">
+        <div class="client-header">
+          <h1>Como podemos ajudar você hoje?</h1>
+          <p>Descreva seu problema ou dúvida em linguagem natural. Nossa inteligência artificial fará a triagem instantânea para direcionar ao especialista correto.</p>
+        </div>
+
+        <div class="client-card glass">
+          <div class="card-header-gradient">
+            <h2><i class="fa-solid fa-pen-to-square"></i> Abrir Novo Chamado</h2>
+          </div>
+          <form id="ticket-form" onsubmit="handleCreateTicket(event)" class="form-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="client-name">Nome Completo</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-user input-icon"></i>
+                  <input type="text" id="client-name" required placeholder="Ex: Ana Clara Silva">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="client-email">E-mail Corporativo</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-envelope input-icon"></i>
+                  <input type="email" id="client-email" required placeholder="Ex: ana.silva@empresa.com">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="ticket-desc">Descrição Detalhada do Problema</label>
+              <textarea id="ticket-desc" required placeholder="Ex: Não consigo acessar meu painel financeiro. Quando clico em ver faturas, o sistema carrega infinitamente e depois mostra um Erro 502 Bad Gateway. Preciso disso resolvido hoje para fechar o caixa." rows="6"></textarea>
+              <span class="textarea-hint">Dica: Quanto mais detalhes fornecer, melhor a IA classificará a urgência e sugerirá a solução.</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submit-ticket-btn">
+              <span>Enviar Chamado</span>
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+        </div>
+
+        <!-- CLIENT TICKETS STATUS -->
+        <div class="client-recent-tickets">
+          <h3>Seus Chamados Recentes</h3>
+          <div id="client-tickets-list" class="recent-list">
+            <!-- Dinamicamente preenchido -->
+            <div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando chamados...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: PAINEL DO ATENDENTE -->
+    <section id="view-agent" class="view-section">
+      <!-- DASHBOARD OVERVIEW METRICS -->
+      <div class="metrics-grid">
+        <div class="metric-card glass">
+          <div class="metric-icon val-new"><i class="fa-solid fa-ticket"></i></div>
+          <div class="metric-data">
+            <h4 id="metric-total">0</h4>
+            <p>Total de Chamados</p>
+          </div>
+        </div>
+        <div class="metric-card glass">
+          <div class="metric-icon val-critical"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="metric-data">
+            <h4 id="metric-critical">0</h4>
+            <p>Urgência Crítica / Alta</p>
+          </div>
+        </div>
+        <div class="metric-card glass">
+          <div class="metric-icon val-progress"><i class="fa-solid fa-spinner"></i></div>
+          <div class="metric-data">
+            <h4 id="metric-pending">0</h4>
+            <p>Em Atendimento</p>
+          </div>
+        </div>
+        <div class="metric-card glass">
+          <div class="metric-icon val-resolved"><i class="fa-solid fa-square-check"></i></div>
+          <div class="metric-data">
+            <h4 id="metric-resolved">0</h4>
+            <p>Resolvidos</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD GRAPH & DETAILS PANEL -->
+      <div class="dashboard-layout">
+        
+        <!-- KANBAN BOARD -->
+        <div class="kanban-area">
+          <div class="kanban-header">
+            <h2><i class="fa-solid fa-chalkboard-user"></i> Quadro de Chamados (Triagem IA)</h2>
+            <div class="kanban-filters">
+              <input type="text" id="search-input" placeholder="Filtrar chamados..." oninput="filterTickets()">
+              <select id="category-filter" onchange="filterTickets()">
+                <option value="all">Todas as Categorias</option>
+                <option value="Acesso">Acesso</option>
+                <option value="Financeiro">Financeiro</option>
+                <option value="Bugs">Bugs</option>
+                <option value="Infraestrutura">Infraestrutura</option>
+                <option value="Dúvidas">Dúvidas</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="kanban-columns">
+            <!-- COLUMN: NOVO -->
+            <div class="kanban-column" id="col-novo" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'novo')">
+              <div class="column-title">
+                <span class="indicator-dot dot-new"></span> Novos Chamados
+                <span class="count-badge" id="count-novo">0</span>
+              </div>
+              <div class="column-cards" id="cards-novo"></div>
+            </div>
+
+            <!-- COLUMN: EM PROGRESSO -->
+            <div class="kanban-column" id="col-em_progresso" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'em_progresso')">
+              <div class="column-title">
+                <span class="indicator-dot dot-progress"></span> Em Progresso
+                <span class="count-badge" id="count-em_progresso">0</span>
+              </div>
+              <div class="column-cards" id="cards-em_progresso"></div>
+            </div>
+
+            <!-- COLUMN: RESOLVIDO -->
+            <div class="kanban-column" id="col-resolvido" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'resolvido')">
+              <div class="column-title">
+                <span class="indicator-dot dot-resolved"></span> Resolvidos
+                <span class="count-badge" id="count-resolvido">0</span>
+              </div>
+              <div class="column-cards" id="cards-resolvido"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METRICS / GRAPHICS PANEL -->
+        <div class="stats-area glass">
+          <h3><i class="fa-solid fa-chart-pie"></i> Distribuição por Categorias</h3>
+          <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+          </div>
+          <div class="divider"></div>
+          <h3><i class="fa-solid fa-face-smile"></i> Análise de Sentimento Geral</h3>
+          <div class="chart-container">
+            <canvas id="sentimentChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- DRAWER: DETALHES E ASSISTENTE IA (MODAL LATERAL) -->
+  <div id="detail-drawer" class="drawer">
+    <div class="drawer-overlay" onclick="closeDrawer()"></div>
+    <div class="drawer-content glass">
+      
+      <!-- Drawer Header -->
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="ticket-id-tag" id="drawer-ticket-id">TICK-XXXX</span>
+          <h2 id="drawer-ticket-title">Título Curto do Chamado</h2>
+        </div>
+        <button class="close-btn" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Drawer Body -->
+      <div class="drawer-body">
+        
+        <!-- Tab buttons inside Drawer -->
+        <div class="drawer-tabs">
+          <button class="drawer-tab active" id="tab-det-btn" onclick="switchDrawerTab('details')">
+            <i class="fa-solid fa-file-invoice"></i> Informações
+          </button>
+          <button class="drawer-tab" id="tab-chat-btn" onclick="switchDrawerTab('chat')">
+            <i class="fa-solid fa-robot"></i> Copiloto IA (Groq)
+          </button>
+        </div>
+
+        <!-- SECTION A: DETALHES -->
+        <div id="drawer-sec-details" class="drawer-section active">
+          <!-- Client Info -->
+          <div class="info-block">
+            <h3><i class="fa-solid fa-user-tie"></i> Dados do Cliente</h3>
+            <div class="info-grid">
+              <div><strong>Nome:</strong> <span id="drawer-client-name">-</span></div>
+              <div><strong>E-mail:</strong> <span id="drawer-client-email">-</span></div>
+              <div><strong>Criado em:</strong> <span id="drawer-created-at">-</span></div>
+              <div><strong>Status:</strong> <span class="status-badge" id="drawer-status-badge">-</span></div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="info-block">
+            <h3><i class="fa-solid fa-message"></i> Descrição Original</h3>
+            <div class="desc-box" id="drawer-description">-</div>
+          </div>
+
+          <!-- AI Bottom-Up Analysis -->
+          <div class="info-block">
+            <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Triagem Automática (Bottom-Up)</h3>
+            <div class="ai-analysis-grid">
+              <div class="ai-metric-item">
+                <span class="ai-label">Urgência Estimada</span>
+                <span class="ai-value" id="drawer-ai-urgency">-</span>
+              </div>
+              <div class="ai-metric-item">
+                <span class="ai-label">Sentimento</span>
+                <span class="ai-value" id="drawer-ai-sentiment">-</span>
+              </div>
+              <div class="ai-metric-item">
+                <span class="ai-label">Categoria IA</span>
+                <span class="ai-value" id="drawer-ai-category">-</span>
+              </div>
+            </div>
+
+            <!-- Similarity details -->
+            <div class="similarity-box">
+              <h4>Métricas de Similaridade na Base de Conhecimento:</h4>
+              <div class="similarity-scores">
+                <div><span class="sim-label">Jaccard (Interseção de Palavras):</span> <strong id="drawer-score-jaccard">0.00</strong></div>
+                <div><span class="sim-label">Levenshtein (Distância de Edição):</span> <strong id="drawer-score-levenshtein">0.00</strong></div>
+              </div>
+              <div class="matched-kb-article">
+                <strong>Artigo Recomendado:</strong> <span id="drawer-kb-title">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Response suggestions -->
+          <div class="info-block">
+            <h3><i class="fa-solid fa-reply-all"></i> Resposta Sugerida pela IA</h3>
+            <textarea class="suggested-textarea" id="drawer-suggested-response" rows="7"></textarea>
+            <div class="action-buttons-group">
+              <button class="btn btn-secondary" onclick="copySuggestedResponse()">
+                <i class="fa-solid fa-copy"></i> Copiar Sugestão
+              </button>
+              <button class="btn btn-success" onclick="sendAgentResponse()">
+                <i class="fa-solid fa-paper-plane"></i> Enviar Resposta e Resolver
+              </button>
+            </div>
+          </div>
+
+          <!-- Comment History -->
+          <div class="info-block">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Mensagens</h3>
+            <div class="comments-timeline" id="drawer-comments-timeline">
+              <!-- Comentários aqui -->
+            </div>
+            
+            <div class="add-comment-box">
+              <input type="text" id="new-comment-input" placeholder="Digite uma observação interna ou mensagem...">
+              <button class="btn btn-primary" onclick="addComment()"><i class="fa-solid fa-plus"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION B: COPILOTO IA CHAT -->
+        <div id="drawer-sec-chat" class="drawer-section">
+          <div class="ai-chat-container">
+            <div class="ai-chat-header">
+              <i class="fa-solid fa-robot"></i>
+              <div>
+                <strong>Assistente Groq</strong>
+                <p>Peça ajuda para analisar logs, criar e-mails customizados ou diagnosticar erros.</p>
+              </div>
+            </div>
+
+            <div class="ai-chat-messages" id="ai-chat-messages-box">
+              <div class="chat-msg system">
+                Olá! Sou o Copiloto IA do TupiDesk. Como posso ajudar você a resolver o chamado deste cliente? Você pode me perguntar coisas como:
+                <ul>
+                  <li>"O que o Erro 502 Bad Gateway geralmente indica neste cenário?"</li>
+                  <li>"Escreva uma resposta curta e empática pedindo mais detalhes técnicos."</li>
+                  <li>"Como resolver a conta bloqueada desse cliente passo a passo?"</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="ai-chat-input-row">
+              <input type="text" id="ai-chat-input" placeholder="Pergunte ao Copiloto IA..." onkeydown="if(event.key === 'Enter') sendAIChatMessage()">
+              <button class="btn btn-primary" id="ai-chat-send-btn" onclick="sendAIChatMessage()">
+                <i class="fa-solid fa-arrow-up"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- App Script -->
+  <script src="js/app.js"></script>
+</body>
+</html>
