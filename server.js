@@ -14,6 +14,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const nodemailer = require('nodemailer');
+
 // Inicializa o SDK da Groq
 const groqApiKey = process.env.api_groq || process.env.GROQ_API_KEY;
 let groq = null;
@@ -24,12 +26,22 @@ if (groqApiKey) {
   console.warn('AVISO: api_groq não configurada no arquivo .env. O TupiDesk funcionará com analisadores locais mockados.');
 }
 
-// Inicialização da chave da Resend
-const resendApiKey = process.env.resend || process.env.RESEND_API_KEY;
-if (resendApiKey) {
-  console.log('Chave API do Resend detectada no arquivo .env.');
+// Configuração do Gmail SMTP Transporter
+const gmailUser = process.env.gmail_user;
+const gmailPass = process.env.gmail_pass;
+let transporter = null;
+
+if (gmailUser && gmailPass) {
+  console.log('Credenciais do Gmail SMTP detectadas no arquivo .env.');
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: gmailUser,
+      pass: gmailPass
+    }
+  });
 } else {
-  console.warn('AVISO: resend não configurada no arquivo .env. Envio de e-mails desativado.');
+  console.warn('AVISO: gmail_user e gmail_pass não configuradas no arquivo .env. Envio de e-mails via SMTP desativado.');
 }
 
 const TICKETS_FILE = path.join(__dirname, 'tickets.json');
@@ -106,12 +118,24 @@ function writeJSONFile(filePath, data) {
   }
 }
 
-// Função para envio de e-mail usando API do Resend
+// Função para envio de e-mail usando o SMTP do Gmail com Nodemailer
 async function sendTicketResolvedEmail(ticket) {
-  const resendKey = process.env.resend || process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    console.log(`[Resend] E-mail não enviado para ${ticket.clientEmail}: chave de API do Resend ausente.`);
+  const user = process.env.gmail_user;
+  const pass = process.env.gmail_pass;
+  if (!user || !pass) {
+    console.log(`[Gmail SMTP] E-mail não enviado para ${ticket.clientEmail}: credenciais gmail_user ou gmail_pass ausentes.`);
     return;
+  }
+
+  // Garante que o transporter está instanciado
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass
+      }
+    });
   }
 
   const agentComments = ticket.comments.filter(c => c.sender === 'agent');
@@ -126,8 +150,8 @@ async function sendTicketResolvedEmail(ticket) {
     `;
   }
 
-  const emailBody = {
-    from: 'TupiDesk <onboarding@resend.dev>',
+  const mailOptions = {
+    from: `"Suporte TupiDesk" <${user}>`,
     to: ticket.clientEmail,
     subject: `[TupiDesk] Chamado Resolvido: ${ticket.id} - ${ticket.aiAnalysis.summary}`,
     html: `
@@ -155,23 +179,10 @@ async function sendTicketResolvedEmail(ticket) {
   };
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendKey}`
-      },
-      body: JSON.stringify(emailBody)
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-      console.log(`[Resend] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. ID: ${data.id}`);
-    } else {
-      console.error(`[Resend] Erro da API ao enviar e-mail para ${ticket.clientEmail}:`, data);
-    }
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`[Gmail SMTP] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. MessageID: ${info.messageId}`);
   } catch (err) {
-    console.error(`[Resend] Erro de rede ao enviar e-mail para ${ticket.clientEmail}:`, err);
+    console.error(`[Gmail SMTP] Erro ao enviar e-mail para ${ticket.clientEmail}:`, err);
   }
 }
 
