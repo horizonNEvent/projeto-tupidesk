@@ -515,10 +515,18 @@ Forneça orientações técnicas, sugestões de diagnóstico ou esboços de resp
   }
 });
 
-// Endpoint de Teste Direto para disparo de e-mail via Brevo
 app.get('/api/test-email', async (req, res) => {
   const toEmail = req.query.email || 'dibu695@gmail.com';
   console.log(`[Teste API] Iniciando disparo de e-mail de teste para: ${toEmail}`);
+  
+  const brevoApiKey = process.env.brevo;
+  if (brevoApiKey) {
+    console.log(`[DEBUG] Brevo key length: ${brevoApiKey.length}`);
+    console.log(`[DEBUG] Brevo key start: ${brevoApiKey.substring(0, 15)}...`);
+    console.log(`[DEBUG] Brevo key end: ...${brevoApiKey.substring(brevoApiKey.length - 15)}`);
+  } else {
+    console.log(`[DEBUG] Brevo key is undefined/null!`);
+  }
   
   const mockTicket = {
     id: "TICK-TEST-1234",
