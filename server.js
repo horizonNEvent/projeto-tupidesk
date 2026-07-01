@@ -545,9 +545,12 @@ app.get('/api/test-email', async (req, res) => {
   
   const brevoApiKey = process.env.brevo;
   if (brevoApiKey) {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256').update(brevoApiKey).digest('hex');
     console.log(`[DEBUG] Brevo key length: ${brevoApiKey.length}`);
     console.log(`[DEBUG] Brevo key start: ${brevoApiKey.substring(0, 15)}...`);
     console.log(`[DEBUG] Brevo key end: ...${brevoApiKey.substring(brevoApiKey.length - 15)}`);
+    console.log(`[DEBUG] Brevo key sha256: ${hash}`);
   } else {
     console.log(`[DEBUG] Brevo key is undefined/null!`);
   }
