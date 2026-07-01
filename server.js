@@ -107,77 +107,101 @@ function writeJSONFile(filePath, data) {
 }
 
 // Função para envio de e-mail usando a API da Brevo via HTTPS (Porta 443)
-async function sendTicketResolvedEmail(ticket) {
-  const brevoApiKey = process.env.brevo;
-  const gmailUser = process.env.gmail_user; // E-mail cadastrado como remetente no Brevo
-  
-  if (!brevoApiKey) {
-    console.log(`[Brevo API] E-mail não enviado para ${ticket.clientEmail}: chave de API do Brevo ausente.`);
-    return;
-  }
+// Função para envio de e-mail usando a API da Brevo via HTTPS (Porta 443)
+function sendTicketResolvedEmail(ticket) {
+  return new Promise((resolve, reject) => {
+    const brevoApiKey = process.env.brevo;
+    const gmailUser = process.env.gmail_user; // E-mail cadastrado como remetente no Brevo
+    
+    if (!brevoApiKey) {
+      console.log(`[Brevo API] E-mail não enviado para ${ticket.clientEmail}: chave de API do Brevo ausente.`);
+      return resolve();
+    }
 
-  const senderEmail = gmailUser || 'bruno.vollu@gmail.com';
+    const senderEmail = gmailUser || 'bruno.vollu@gmail.com';
 
-  const agentComments = ticket.comments.filter(c => c.sender === 'agent');
-  let agentReplyHtml = '';
-  if (agentComments.length > 0) {
-    const lastReply = agentComments[agentComments.length - 1].text;
-    agentReplyHtml = `
-      <div style="border-left: 4px solid #10b981; padding-left: 15px; margin: 20px 0;">
-        <p style="margin: 0 0 5px 0; font-size: 14px; color: #10b981;"><strong>Solução do Atendente:</strong></p>
-        <p style="margin: 0; font-style: italic; white-space: pre-wrap; color: #f3f4f6;">${lastReply}</p>
-      </div>
-    `;
-  }
-
-  const emailBody = {
-    sender: { name: "Suporte TupiDesk", email: senderEmail },
-    to: [ { email: ticket.clientEmail, name: ticket.clientName } ],
-    subject: `[TupiDesk] Chamado Resolvido: ${ticket.id} - ${ticket.aiAnalysis.summary}`,
-    htmlContent: `
-      <div style="font-family: sans-serif; background-color: #0d0f14; color: #f3f4f6; padding: 25px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1f2937;">
-        <div style="text-align: center; border-bottom: 1px solid #1f2937; padding-bottom: 15px; margin-bottom: 20px;">
-          <h2 style="color: #3b82f6; font-size: 24px; margin: 0;">TupiDesk</h2>
-          <span style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Notificação de Encerramento</span>
+    const agentComments = ticket.comments.filter(c => c.sender === 'agent');
+    let agentReplyHtml = '';
+    if (agentComments.length > 0) {
+      const lastReply = agentComments[agentComments.length - 1].text;
+      agentReplyHtml = `
+        <div style="border-left: 4px solid #10b981; padding-left: 15px; margin: 20px 0;">
+          <p style="margin: 0 0 5px 0; font-size: 14px; color: #10b981;"><strong>Solução do Atendente:</strong></p>
+          <p style="margin: 0; font-style: italic; white-space: pre-wrap; color: #f3f4f6;">${lastReply}</p>
         </div>
-        <p>Olá <strong>${ticket.clientName}</strong>,</p>
-        <p>Seu chamado de suporte foi concluído com sucesso e marcado como <strong>Resolvido</strong>.</p>
-        
-        <div style="background-color: #121620; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #1f2937;">
-          <p style="margin: 0 0 10px 0; font-size: 13px; color: #9ca3af; text-transform: uppercase;"><strong>Detalhes do Chamado:</strong></p>
-          <p style="margin: 0 0 5px 0;"><strong>ID:</strong> ${ticket.id}</p>
-          <p style="margin: 0 0 5px 0;"><strong>Resumo:</strong> ${ticket.aiAnalysis.summary}</p>
-          <p style="margin: 0;"><strong>Descrição:</strong> ${ticket.description}</p>
-        </div>
-        
-        ${agentReplyHtml}
-        
-        <hr style="border: 0; border-top: 1px solid #1f2937; margin: 25px 0;" />
-        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 0;">Este é um e-mail automático enviado pelo TupiDesk. Por favor, não responda diretamente a esta mensagem.</p>
-      </div>
-    `
-  };
+      `;
+    }
 
-  try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const emailBody = JSON.stringify({
+      sender: { name: "Suporte TupiDesk", email: senderEmail },
+      to: [ { email: ticket.clientEmail, name: ticket.clientName } ],
+      subject: `[TupiDesk] Chamado Resolvido: ${ticket.id} - ${ticket.aiAnalysis.summary}`,
+      htmlContent: `
+        <div style="font-family: sans-serif; background-color: #0d0f14; color: #f3f4f6; padding: 25px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1f2937;">
+          <div style="text-align: center; border-bottom: 1px solid #1f2937; padding-bottom: 15px; margin-bottom: 20px;">
+            <h2 style="color: #3b82f6; font-size: 24px; margin: 0;">TupiDesk</h2>
+            <span style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px;">Notificação de Encerramento</span>
+          </div>
+          <p>Olá <strong>${ticket.clientName}</strong>,</p>
+          <p>Seu chamado de suporte foi concluído com sucesso e marcado como <strong>Resolvido</strong>.</p>
+          
+          <div style="background-color: #121620; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #1f2937;">
+            <p style="margin: 0 0 10px 0; font-size: 13px; color: #9ca3af; text-transform: uppercase;"><strong>Detalhes do Chamado:</strong></p>
+            <p style="margin: 0 0 5px 0;"><strong>ID:</strong> ${ticket.id}</p>
+            <p style="margin: 0 0 5px 0;"><strong>Resumo:</strong> ${ticket.aiAnalysis.summary}</p>
+            <p style="margin: 0;"><strong>Descrição:</strong> ${ticket.description}</p>
+          </div>
+          
+          ${agentReplyHtml}
+          
+          <hr style="border: 0; border-top: 1px solid #1f2937; margin: 25px 0;" />
+          <p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 0;">Este é um e-mail automático enviado pelo TupiDesk. Por favor, não responda diretamente a esta mensagem.</p>
+        </div>
+      `
+    });
+
+    const https = require('https');
+    const options = {
+      hostname: 'api.brevo.com',
+      port: 443,
+      path: '/v3/smtp/email',
       method: 'POST',
       headers: {
         'accept': 'application/json',
         'content-type': 'application/json',
-        'api-key': brevoApiKey
-      },
-      body: JSON.stringify(emailBody)
+        'api-key': brevoApiKey,
+        'content-length': Buffer.byteLength(emailBody)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode === 201 || res.statusCode === 200) {
+            console.log(`[Brevo API] E-mail enviado com sucesso! MessageID: ${parsed.messageId}`);
+            resolve(parsed);
+          } else {
+            console.error(`[Brevo API] Erro ao enviar e-mail (Status ${res.statusCode}):`, parsed);
+            resolve(parsed);
+          }
+        } catch (e) {
+          console.error(`[Brevo API] Falha ao parsear resposta:`, data);
+          resolve(data);
+        }
+      });
     });
 
-    const data = await response.json();
-    if (response.ok) {
-      console.log(`[Brevo API] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. MessageID: ${data.messageId}`);
-    } else {
-      console.error(`[Brevo API] Erro da API ao enviar e-mail para ${ticket.clientEmail}:`, data);
-    }
-  } catch (err) {
-    console.error(`[Brevo API] Erro de rede ao enviar e-mail para ${ticket.clientEmail}:`, err);
-  }
+    req.on('error', (err) => {
+      console.error(`[Brevo API] Erro de rede:`, err);
+      reject(err);
+    });
+
+    req.write(emailBody);
+    req.end();
+  });
 }
 
 // Garante que o arquivo de tickets e KB existam
