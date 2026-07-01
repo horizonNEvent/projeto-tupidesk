@@ -515,6 +515,38 @@ Forneça orientações técnicas, sugestões de diagnóstico ou esboços de resp
   }
 });
 
+// Endpoint de Teste Direto para disparo de e-mail via Brevo
+app.get('/api/test-email', async (req, res) => {
+  const toEmail = req.query.email || 'dibu695@gmail.com';
+  console.log(`[Teste API] Iniciando disparo de e-mail de teste para: ${toEmail}`);
+  
+  const mockTicket = {
+    id: "TICK-TEST-1234",
+    clientName: "Cliente de Teste",
+    clientEmail: toEmail,
+    description: "Este é um teste direto de envio de e-mails para validar a integração do Brevo API.",
+    aiAnalysis: {
+      summary: "Teste de Integração de E-mail"
+    },
+    comments: [
+      { sender: "agent", text: "Parabéns! A integração de e-mail do TupiDesk via Brevo API foi concluída e está funcionando 100% no Render!" }
+    ]
+  };
+
+  try {
+    await sendTicketResolvedEmail(mockTicket);
+    res.json({
+      status: "success",
+      message: `Tentativa de envio de e-mail concluída para ${toEmail}. Verifique os logs do console do servidor para confirmar o MessageID ou possíveis erros.`
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: err.message
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`=== Servidor TupiDesk rodando com sucesso ===`);
   console.log(`URL Local: http://localhost:${PORT}`);
