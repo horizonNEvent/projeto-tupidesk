@@ -14,8 +14,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const nodemailer = require('nodemailer');
-
 // Inicializa o SDK da Groq
 const groqApiKey = process.env.api_groq || process.env.GROQ_API_KEY;
 let groq = null;
@@ -26,22 +24,12 @@ if (groqApiKey) {
   console.warn('AVISO: api_groq não configurada no arquivo .env. O TupiDesk funcionará com analisadores locais mockados.');
 }
 
-// Configuração do Gmail SMTP Transporter
-const gmailUser = process.env.gmail_user;
-const gmailPass = process.env.gmail_pass;
-let transporter = null;
-
-if (gmailUser && gmailPass) {
-  console.log('Credenciais do Gmail SMTP detectadas no arquivo .env.');
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: gmailUser,
-      pass: gmailPass
-    }
-  });
+// Inicialização da chave da Brevo
+const brevoKey = process.env.brevo;
+if (brevoKey) {
+  console.log('Chave API da Brevo detectada no arquivo .env.');
 } else {
-  console.warn('AVISO: gmail_user e gmail_pass não configuradas no arquivo .env. Envio de e-mails via SMTP desativado.');
+  console.warn('AVISO: brevo não configurada no arquivo .env. Envio de e-mails via Brevo desativado.');
 }
 
 const TICKETS_FILE = path.join(__dirname, 'tickets.json');
@@ -118,25 +106,17 @@ function writeJSONFile(filePath, data) {
   }
 }
 
-// Função para envio de e-mail usando o SMTP do Gmail com Nodemailer
+// Função para envio de e-mail usando a API da Brevo via HTTPS (Porta 443)
 async function sendTicketResolvedEmail(ticket) {
-  const user = process.env.gmail_user;
-  const pass = process.env.gmail_pass;
-  if (!user || !pass) {
-    console.log(`[Gmail SMTP] E-mail não enviado para ${ticket.clientEmail}: credenciais gmail_user ou gmail_pass ausentes.`);
+  const brevoApiKey = process.env.brevo;
+  const gmailUser = process.env.gmail_user; // E-mail cadastrado como remetente no Brevo
+  
+  if (!brevoApiKey) {
+    console.log(`[Brevo API] E-mail não enviado para ${ticket.clientEmail}: chave de API do Brevo ausente.`);
     return;
   }
 
-  // Garante que o transporter está instanciado
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user,
-        pass
-      }
-    });
-  }
+  const senderEmail = gmailUser || 'bruno.vollu@gmail.com';
 
   const agentComments = ticket.comments.filter(c => c.sender === 'agent');
   let agentReplyHtml = '';
@@ -150,11 +130,11 @@ async function sendTicketResolvedEmail(ticket) {
     `;
   }
 
-  const mailOptions = {
-    from: `"Suporte TupiDesk" <${user}>`,
-    to: ticket.clientEmail,
+  const emailBody = {
+    sender: { name: "Suporte TupiDesk", email: senderEmail },
+    to: [ { email: ticket.clientEmail, name: ticket.clientName } ],
     subject: `[TupiDesk] Chamado Resolvido: ${ticket.id} - ${ticket.aiAnalysis.summary}`,
-    html: `
+    htmlContent: `
       <div style="font-family: sans-serif; background-color: #0d0f14; color: #f3f4f6; padding: 25px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1f2937;">
         <div style="text-align: center; border-bottom: 1px solid #1f2937; padding-bottom: 15px; margin-bottom: 20px;">
           <h2 style="color: #3b82f6; font-size: 24px; margin: 0;">TupiDesk</h2>
@@ -179,10 +159,24 @@ async function sendTicketResolvedEmail(ticket) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[Gmail SMTP] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. MessageID: ${info.messageId}`);
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': brevoApiKey
+      },
+      body: JSON.stringify(emailBody)
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log(`[Brevo API] E-mail de finalização enviado com sucesso para ${ticket.clientEmail}. MessageID: ${data.messageId}`);
+    } else {
+      console.error(`[Brevo API] Erro da API ao enviar e-mail para ${ticket.clientEmail}:`, data);
+    }
   } catch (err) {
-    console.error(`[Gmail SMTP] Erro ao enviar e-mail para ${ticket.clientEmail}:`, err);
+    console.error(`[Brevo API] Erro de rede ao enviar e-mail para ${ticket.clientEmail}:`, err);
   }
 }
 
